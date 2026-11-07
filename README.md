@@ -45,7 +45,7 @@ ScopeSentry AI
 |-------|-----------|
 | Frontend | React 18, Vite, Tailwind CSS, Lucide React, Recharts |
 | Backend | Python 3.11+, FastAPI, Pydantic v2 |
-| AI Brain | Groq API (llama-3.3-70b-versatile) |
+| AI Brain | Groq API (openai/gpt-oss-120b) |
 | Persistent Memory | Hindsight Cloud (`hindsight-client`) |
 | Database | SQLite + SQLAlchemy (async) |
 

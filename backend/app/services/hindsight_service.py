@@ -42,7 +42,10 @@ class HindsightService:
         try:
             # Try to create bank - if it already exists, the exception is ignored
             try:
-                self._client.create_bank(bank_id=bank_id, name=name)
+                if hasattr(self._client, "acreate_bank"):
+                    await self._client.acreate_bank(bank_id=bank_id, name=name)
+                else:
+                    self._client.create_bank(bank_id=bank_id, name=name)
                 logger.info(f"Created Hindsight bank: {bank_id}")
             except Exception:
                 # Bank may already exist — that's fine
@@ -115,6 +118,7 @@ class HindsightService:
         reason: str,
     ) -> bool:
         bank_id = self._get_bank_id(project_id, client_id)
+        await self.ensure_bank_exists(bank_id, f"Project {project_id} - ScopeSentry")
         content = (
             f"SCOPE ANALYSIS\n"
             f"Client Request: {request}\n"

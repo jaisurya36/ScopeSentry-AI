@@ -8,6 +8,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
     hindsight_api_key: str = os.getenv("HINDSIGHT_API_KEY", "")
     hindsight_base_url: str = os.getenv(
         "HINDSIGHT_BASE_URL", "https://api.hindsight.vectorize.io"

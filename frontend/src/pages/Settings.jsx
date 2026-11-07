@@ -91,7 +91,7 @@ export default function Settings() {
 
           <p className="text-xs text-slate-300 mb-4 leading-relaxed">
             Powers rapid, structured analysis comparing client requests against original agreements.
-            Uses model <code className="text-blue-400 font-mono">llama-3.3-70b-versatile</code> with
+            Uses model <code className="text-blue-400 font-mono">openai/gpt-oss-120b</code> with
             strict JSON schema output.
           </p>
 
@@ -168,7 +168,7 @@ export default function Settings() {
           To configure or update your keys, edit the <code className="text-blue-400 font-mono">backend/.env</code> file:
         </p>
         <div className="rounded-xl bg-slate-950 p-4 border border-slate-800 font-mono text-xs text-slate-300 space-y-1">
-          <p><span className="text-slate-500"># Groq AI Key (llama-3.3-70b-versatile)</span></p>
+          <p><span className="text-slate-500"># Groq AI Key (openai/gpt-oss-120b)</span></p>
           <p className="text-emerald-400">GROQ_API_KEY=gsk_your_groq_api_key_here</p>
           <p className="pt-2"><span className="text-slate-500"># Hindsight Cloud API Key</span></p>
           <p className="text-blue-400">HINDSIGHT_API_KEY=your_hindsight_api_key_here</p>

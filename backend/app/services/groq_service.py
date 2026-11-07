@@ -1,7 +1,16 @@
 import json
 import logging
 from typing import List, Optional
-from groq import AsyncGroq
+from groq import (
+    AsyncGroq,
+    NotFoundError,
+    AuthenticationError,
+    RateLimitError,
+    APIConnectionError,
+    APITimeoutError,
+    APIStatusError,
+    GroqError,
+)
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -34,6 +43,7 @@ class GroqService:
     def __init__(self):
         self._client = None
         self._available = False
+        self.model = settings.groq_model or "openai/gpt-oss-120b"
         self._init_client()
 
     def _init_client(self):
@@ -43,7 +53,7 @@ class GroqService:
         try:
             self._client = AsyncGroq(api_key=settings.groq_api_key)
             self._available = True
-            logger.info("Groq client initialized")
+            logger.info("Groq client initialized with model: %s", self.model)
         except Exception as e:
             logger.error(f"Failed to initialize Groq: {e}")
 
@@ -82,7 +92,7 @@ Return your analysis as valid JSON."""
 
         try:
             response = await self._client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
@@ -93,7 +103,43 @@ Return your analysis as valid JSON."""
             )
             content = response.choices[0].message.content
             result = json.loads(content)
-            return result
+
+            # Validate and normalize core fields for schema conformity
+            decision = str(result.get("decision", "NEEDS_CLARIFICATION")).upper()
+            if decision not in ("IN_SCOPE", "OUT_OF_SCOPE", "NEEDS_CLARIFICATION"):
+                decision = "NEEDS_CLARIFICATION"
+
+            risk_level = str(result.get("risk_level", "MEDIUM")).upper()
+            if risk_level not in ("LOW", "MEDIUM", "HIGH"):
+                risk_level = "MEDIUM"
+
+            return {
+                "decision": decision,
+                "risk_level": risk_level,
+                "reason": result.get("reason", "No reason provided."),
+                "matched_agreement": result.get("matched_agreement", []) if isinstance(result.get("matched_agreement"), list) else [str(result.get("matched_agreement"))],
+                "requested_changes": result.get("requested_changes", []) if isinstance(result.get("requested_changes"), list) else [str(result.get("requested_changes"))],
+                "recommendation": result.get("recommendation", "Review request with client."),
+                "suggested_reply": result.get("suggested_reply", "Thank you for your request. We will review this shortly."),
+                "suggested_charge": result.get("suggested_charge"),
+            }
+        except NotFoundError as e:
+            logger.error(f"Groq model '{self.model}' not found: {e}")
+            raise RuntimeError(
+                f"Groq model '{self.model}' not found or is deprecated. Please check model configuration: {e.message}"
+            )
+        except AuthenticationError as e:
+            logger.error(f"Groq authentication error: {e}")
+            raise RuntimeError("Invalid GROQ_API_KEY. Please verify your Groq API credentials.")
+        except RateLimitError as e:
+            logger.error(f"Groq rate limit exceeded: {e}")
+            raise RuntimeError("Groq API rate limit reached. Please wait a moment and retry.")
+        except (APIConnectionError, APITimeoutError) as e:
+            logger.error(f"Groq connection/timeout error: {e}")
+            raise RuntimeError(f"Could not connect to Groq API: {str(e)}")
+        except APIStatusError as e:
+            logger.error(f"Groq API returned status {e.status_code}: {e.message}")
+            raise RuntimeError(f"Groq API error ({e.status_code}): {e.message}")
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Groq response as JSON: {e}")
             raise RuntimeError(f"AI response parsing failed: {str(e)}")
@@ -109,13 +155,21 @@ Return your analysis as valid JSON."""
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        response = await self._client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=1000,
-        )
-        return response.choices[0].message.content
+
+        try:
+            response = await self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=1000,
+            )
+            return response.choices[0].message.content
+        except NotFoundError as e:
+            logger.error(f"Groq model '{self.model}' not found: {e}")
+            raise RuntimeError(f"Groq model '{self.model}' not found: {e.message}")
+        except Exception as e:
+            logger.error(f"Groq text generation error: {e}")
+            raise RuntimeError(f"Groq text generation failed: {str(e)}")
 
 
 groq_service = GroqService()
